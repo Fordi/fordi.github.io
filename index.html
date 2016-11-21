@@ -139,16 +139,14 @@
 				var block = row.parentNode;
 				var rowNum = [].indexOf.call(block.children, row);
 				var pinNum = [].indexOf.call(row.children, cell);
-				var mode = document.querySelector('#pinMode').value;
-				if (mode === 'BCM') {
-					var x = 'invalid';
-					return [
+				var x = undefined;
+				return {
+					BCM: [
 						[x, x, x, 14, 15, 18, x, 23, 24, x, 25, 8, 7, x, x, 12, x, 16, 20, 21],
 						[x, 2, 3, 4, x, 17, 27, 22, x, 10, 9, 11, x, x, 5, 6, 13, 19, 26, x]
-					][rowNum][pinNum];
-				} else {
-					return 1 + pinNum * 2 + (1 - rowNum);
-				}
+					][rowNum][pinNum],
+					Board: 1 + pinNum * 2 + (1 - rowNum)
+				};
 			}
 			function getWithUnit(id) {
 				return parseFloat(document.getElementById(id).value) *
@@ -156,6 +154,7 @@
 			}
 			function recalculate() {
 				var pinNum = getPin();
+				var mode = document.querySelector('#pinMode').value;
 				var inp = [ 'buffer', 'sensorMin', 'sensorMax', 'capacitance' ].reduce(function (o, i) {
 					o[i] = getWithUnit(i);
 					return o;
@@ -163,7 +162,7 @@
 				var timeout = (100 + inp.buffer + inp.sensorMax) * inp.capacitance;
 				var minTimeout = (100 + inp.buffer + inp.sensorMin) * inp.capacitance;
 				document.getElementById('construct').textContent = [
-					'Pin(' + pinNum,
+					'Pin(' + pinNum[mode],
 					'minResistance=' + fmt(inp.buffer + inp.sensorMin, 3),
 					'capacitance=' + fmt(inp.capacitance, 3),
 					'timeout=' + fmt(timeout, 3) + ')'
@@ -171,6 +170,10 @@
 				var dischargeTime = inp.capacitance * 1000;
 				document.getElementById('minFreq').textContent = fmt(1 / (timeout + dischargeTime), 3, 'Hz');
 				document.getElementById('maxFreq').textContent = fmt(1 / (minTimeout + dischargeTime), 3, 'Hz');
+				document.getElementById('pinNum').textContent = 'BCM: ' + pinNum.BCM + ' / Pi: ' + pinNum.Board;
+				document.getElementById('sensorR').textContent = fmt(inp.sensorMin, 1, '') + ' .. ' + fmt(inp.sensorMax, 1, 'Ω');
+				document.getElementById('bufferR').textContent = fmt(inp.buffer, 1, 'Ω');
+				document.getElementById('capacitorF').textContent = fmt(inp.capacitance, 1, 'F');
 			}
 		</script>
 	</head>
@@ -182,7 +185,7 @@
 				<tbody>
 					<tr>
 						<th><label for="pinMode">Pin mode</label></th>
-						<td>
+						<td colspan="2">
 							<select id="pinMode">
 								<option>BCM</option>
 								<option>BOARD</option>
@@ -191,7 +194,7 @@
 					</tr>
 					<tr>
 						<th>Pin</th>
-						<td colspan="2">
+						<td colspan="3">
 							<table class="pinout" cellspacing="0" cellpadding="0">
 								<tr>
 									<td class="baseline"><ins name="+5V"></ins></td>
@@ -244,6 +247,96 @@
 						<th class="span" colspan="3"><label for="sensorMin">Sensor resistance</label></th>
 					</tr>
 					<tr>
+						<th><label for="buffer">Buffer</label></th>
+						<td><input type="number" id="buffer" value="2.2"></td>
+						<td>
+							<select id="bufferUnit">
+								<option value="1000000">MΩ</option>
+								<option selected value="1000">kΩ</option>
+								<option value="1">Ω</option>
+								<option value="0.001">mΩ</option>
+								<option value="0.000001">μΩ</option>
+							</select>
+						</td>
+						<td rowspan="4">
+							<svg width="180" height="260" viewBox="0 0 180 260" version="1.1">
+								<defs>
+									<marker orient="auto" refY="0.0" refX="0.0" id="arrow" style="overflow:visible;">
+										<path d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z " transform="scale(0.8) rotate(180) translate(12.5,0)" />
+									</marker>
+									<style>
+										circle, rect, polyline {
+											fill: none;
+											stroke: #000000;
+										}
+										path {
+											fill: #000000;
+											stroke: none;
+										}
+										text, tspan {
+											font-size:12px;
+											font-family:sans-serif;
+											fill:#000000;
+											stroke:none;
+										}
+									</style>
+								</defs>
+								<g id="Vcc" transform="translate(94, 0)">
+									<circle cx="20" cy="30" r="4" />
+									<text x="0" y="20">
+										<tspan>3.3V</tspan>
+									</text>
+								</g>
+								<polyline points="110,30 28,30 28,45" />
+								<g id="R1">
+									<polyline points="28,45 36,48 20,53 36,59 20,64 36,70 20,76 36,81 20,86 36,92 28,95" />
+									<text x="46" y="70">
+										<tspan>Buffer</tspan>
+									</text>
+									<text x="46" y="85">
+										<tspan id="bufferR"></tspan>
+									</text>
+								</g>
+								<polyline points="28,95 28,110" />
+								<g id="Sensor" >
+									<polyline transform="translate(0, 65)" points="28,45 36,48 20,53 36,59 20,64 36,70 20,76 36,81 20,86 36,92 28,95" />
+									<polyline points="70,136 38,136" marker-end="url(#arrow)" />
+									<text x="46" y="110">
+										<tspan>Sensor</tspan>
+									</text>
+									<text x="46" y="125">
+										<tspan id="sensorR">0-100 Ω</tspan>
+									</text>
+								</g>
+								<polyline points="70,136 70,172 28,172 28,185 28,210" />
+								<g id="C1">
+									<polyline points="12,210 44,210" />
+									<polyline points="12,218 44,218" />
+									<text x="50" y="210">
+										<tspan>Capacitor</tspan>
+									</text>
+									<text x="50" y="225">
+										<tspan id="capacitorF"></tspan>
+									</text>
+								</g>
+								<polyline points="28,185 110,185" />
+								<g id="GPIO" transform="translate(94, 155)">
+									<circle cx="20" cy="30" r="4" />
+									<text x="-15" y="20">
+										<tspan id="pinNum">Pin #</tspan>
+									</text>
+								</g>
+								<polyline points="28,218 28,238 110,238" />
+								<g id="GND" transform="translate(94, 208)">
+									<circle cx="20" cy="30" r="4" />
+									<text x="0" y="50">
+										<tspan>GND</tspan>
+									</text>
+								</g>
+							</svg>
+						</td>
+					</tr>
+					<tr>
 						<th><label for="sensorMin">Min</label></th>
 						<td><input type="number" id="sensorMin" value="0"></td>
 						<td>
@@ -282,35 +375,22 @@
 							</select>
 						</td>
 					</tr>
-					<tr>
-						<th><label for="buffer">Buffer resistor</label></th>
-						<td><input type="number" id="buffer" value="2.2"></td>
-						<td>
-							<select id="bufferUnit">
-								<option value="1000000">MΩ</option>
-								<option selected value="1000">kΩ</option>
-								<option value="1">Ω</option>
-								<option value="0.001">mΩ</option>
-								<option value="0.000001">μΩ</option>
-							</select>
-						</td>
-					</tr>
 				</tbody>
 				<tfoot>
 					<tr>
 						<th>Constructor</th>
-						<td colspan="2"><pre id="construct">Pin(17, minResistance=2200, capacitance=0.000001, timeout=0.023)</pre></td>
+						<td colspan="3"><pre id="construct">Pin(17, minResistance=2200, capacitance=0.000001, timeout=0.023)</pre></td>
 					</tr>
 					<tr>
 						<th class="span" colspan="3">Sampling frequency</th>
 					</tr>
 					<tr>
 						<th>Min</th>
-						<td colspan="2" id="minFreq">29.126 Hz</td>
+						<td colspan="3" id="minFreq">29.126 Hz</td>
 					</tr>
 					<tr>
 						<th>Max</th>
-						<td colspan="2" id="maxFreq">1000 Hz</td>
+						<td colspan="3" id="maxFreq">1000 Hz</td>
 					</tr>
 				</tfoot>
 			</table>
