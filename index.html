@@ -1,1 +1,333 @@
-Hello, world
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title>Analog pin calculator</title>
+		<style>
+			body, html {
+				padding: 0;
+				margin: 0;
+				background-color: #333;
+				font-family: 'Ubuntu', Arial, sans-serif;
+			}
+			section {
+				width: 6in;
+				margin: 0 auto;
+				background-color: #E4E4E0;
+				min-height: 100vh;
+				display: block;
+				padding: 1px 0.25in;
+				box-sizing: border-box;
+				box-shadow: 0 80px 160px rgba( 86,   7,   7, 0.66),
+							0 40px  80px rgba(113,  28,  28, 0.66),
+							0 20px  40px rgba(143,  63,  63, 0.66),
+							0 10px  20px rgba(113, 113, 113, 0.66),
+							0  5px  10px rgba( 86, 177, 177, 0.66),
+							0  0     5px rgba( 63, 255, 255, 0.66),
+							inset -6in -100vh 100vh -50vh rgba(20, 60, 30, 0.1);
+
+			}
+			section>table {
+				margin: 0 auto;
+			}
+			th {
+				text-align: right;
+			}
+			th.span {
+				text-align: left;
+			}
+			input[type="number"] {
+				width: 5em;
+			}
+			.pinout ins {
+				box-sizing: border-box;
+				margin: 3px 3px 0 3px;
+				width: 13px;
+				height: 13px;
+				display: inline-block;
+				border-radius: 6.5px;
+				border: 1px solid black;
+				position: relative;
+				background-color: white;
+			}
+			.pinout ins:after {
+				display: block;
+				position: absolute;
+				content: '×';
+				line-height: 13px;
+				text-align: center;
+				font-family: sans-serif;
+				top: 0;
+				left: 1px;
+			}
+			.pinout ins[name="GND"] {
+				background-color: black;
+				color: white;
+			}
+			.pinout ins[name="GND"]:after {
+				content: '⏚';
+				left: -2px;
+			}
+			.pinout ins[name="+5V"] {
+				background-color: #DD0000;
+				border: 1px solid #DD0000;
+				color: white;
+			}
+			.pinout ins[name="+5V"]:after {
+				content: '5';
+				font-size: 0.65em;
+				font-weight: bold;
+				left: 3px;
+			}
+			.pinout ins[name="+3.3V"] {
+				background-color: #CC0000;
+				border: 1px solid #CC0000;
+				color: white;
+			}
+			.pinout ins[name="+3.3V"]:after {
+				content: '3';
+				font-size: 0.65em;
+				font-weight: bold;
+				left: 3px;
+			}
+			.pinout td {
+				text-align: center;
+			}
+			.pinout td.baseline {
+				background-color: transparent;
+			}
+			.pinout td.model-B {
+				background-color: #EEE;
+			}
+			.pinout td.uart {
+				box-shadow: inset 0 0 0 26px rgba(0, 0, 255, 0.1);
+			}
+			.pinout td.pcm {
+				box-shadow: inset 0 0 0 26px rgba(0, 255, 0, 0.1);
+			}
+			.pinout td.spi {
+				box-shadow: inset 0 0 0 26px rgba(0, 255, 255, 0.1);
+			}
+			.pinout td.i2c {
+				box-shadow: inset 0 0 0 26px rgba(255, 0, 255, 0.1);
+			}
+			.pinout td.verboten {
+				box-shadow: inset 0 0 0 26px rgba(255, 0, 0, 0.5);
+			}
+		</style>
+		<script>
+			function fmt(n, sig, u) {
+				var p = Math.pow(10, sig);
+				if (!u) {
+					return (Math.round(n * p) / p).toString();
+				}
+				var s = n >= 0 ? '' : '-', d = Math.abs(n), c = 4;
+				while (d < 1) {
+					d *= 1000;
+					c += 1;
+				}
+				while (d > 1000) {
+					d /= 1000;
+					c -= 1;
+				}
+				return s + (Math.round(d * p) / p).toString() + ' ' + [ 'T', 'G', 'M', 'k', '', 'm', 'μ', 'n', 'p' ][c] + u;
+			}
+			function getPin() {
+				var pin = document.querySelector('input[name="pin"]:checked');
+				var cell = pin.parentNode;
+				var row = cell.parentNode;
+				var block = row.parentNode;
+				var rowNum = [].indexOf.call(block.children, row);
+				var pinNum = [].indexOf.call(row.children, cell);
+				var mode = document.querySelector('#pinMode').value;
+				if (mode === 'BCM') {
+					var x = 'invalid';
+					return [
+						[x, x, x, 14, 15, 18, x, 23, 24, x, 25, 8, 7, x, x, 12, x, 16, 20, 21],
+						[x, 2, 3, 4, x, 17, 27, 22, x, 10, 9, 11, x, x, 5, 6, 13, 19, 26, x]
+					][rowNum][pinNum];
+				} else {
+					return 1 + pinNum * 2 + (1 - rowNum);
+				}
+			}
+			function getWithUnit(id) {
+				return parseFloat(document.getElementById(id).value) *
+				       parseFloat(document.getElementById(id + 'Unit').value);
+			}
+			function recalculate() {
+				var pinNum = getPin();
+				var inp = [ 'buffer', 'sensorMin', 'sensorMax', 'capacitance' ].reduce(function (o, i) {
+					o[i] = getWithUnit(i);
+					return o;
+				}, {});
+				var timeout = (100 + inp.buffer + inp.sensorMax) * inp.capacitance;
+				var minTimeout = (100 + inp.buffer + inp.sensorMin) * inp.capacitance;
+				document.getElementById('construct').textContent = [
+					'Pin(' + pinNum,
+					'minResistance=' + fmt(inp.buffer + inp.sensorMin, 3),
+					'capacitance=' + fmt(inp.capacitance, 3),
+					'timeout=' + fmt(timeout, 3) + ')'
+				].join(', ');
+				var dischargeTime = inp.capacitance * 1000;
+				document.getElementById('minFreq').textContent = fmt(1 / (timeout + dischargeTime), 3, 'Hz');
+				document.getElementById('maxFreq').textContent = fmt(1 / (minTimeout + dischargeTime), 3, 'Hz');
+			}
+		</script>
+	</head>
+	<body>
+		<section>
+			<h1>Analog pin calculator</h1>
+			<p>For use with <a href="https://github.com/Fordi/rpi-analog-pin">rpi-analog-pin</a></p>
+			<table>
+				<tbody>
+					<tr>
+						<th><label for="pinMode">Pin mode</label></th>
+						<td>
+							<select id="pinMode">
+								<option>BCM</option>
+								<option>BOARD</option>
+							</select>
+						</td>
+					</tr>
+					<tr>
+						<th>Pin</th>
+						<td colspan="2">
+							<table class="pinout" cellspacing="0" cellpadding="0">
+								<tr>
+									<td class="baseline"><ins name="+5V"></ins></td>
+									<td class="baseline"><ins name="+5V"></ins></td>
+									<td class="baseline"><ins name="GND"></ins></td>
+									<td class="baseline uart" title="UART: TXD"><input type="radio" name="pin" /></td>
+									<td class="baseline uart" title="UART: RXD"><input type="radio" name="pin" /></td>
+									<td class="baseline pcm" title="PCM: CLK"><input type="radio" name="pin" /></td>
+									<td class="baseline"><ins name="GND"></ins></td>
+									<td class="baseline"><input type="radio" name="pin" /></td>
+									<td class="baseline"><input type="radio" name="pin" /></td>
+									<td class="baseline"><ins name="GND"></ins></td>
+									<td class="baseline"><input type="radio" name="pin" /></td>
+									<td class="baseline spi" title="SPI: CE0"><input type="radio" name="pin" /></td>
+									<td class="baseline spi" title="SPI: CE1"><input type="radio" name="pin" /></td>
+									<td class="model-B verboten" title="ID SC"><ins name="ID SC"></ins></td>
+									<td class="model-B"><ins name="GND"></ins></td>
+									<td class="model-B"><input type="radio" name="pin" /></td>
+									<td class="model-B"><ins name="GND"></ins></td>
+									<td class="model-B"><input type="radio" name="pin" /></td>
+									<td class="model-B pcm" title="PCM: DIN"><input type="radio" name="pin" /></td>
+									<td class="model-B pcm" title="PCM: DOUT"><input type="radio" name="pin" /></td>
+								</tr>
+								<tr>
+									<td class="baseline"><ins name="+3.3V"></ins></td>
+									<td class="baseline i2c" title="I²C: SDA"><input type="radio" name="pin" /></td>
+									<td class="baseline i2c" title="I²C: SCL"><input type="radio" name="pin" /></td>
+									<td class="baseline"><input type="radio" name="pin" /></td>
+									<td class="baseline"><ins name="GND"></ins></td>
+									<td class="baseline"><input checked type="radio" name="pin" /></td>
+									<td class="baseline"><input type="radio" name="pin" /></td>
+									<td class="baseline"><input type="radio" name="pin" /></td>
+									<td class="baseline"><ins name="+3.3V"></ins></td>
+									<td class="baseline spi" title="SPI: MOSI"><input type="radio" name="pin" /></td>
+									<td class="baseline spi" title="SPI: MISO"><input type="radio" name="pin" /></td>
+									<td class="baseline spi" title="SPI: SCLK"><input type="radio" name="pin" /></td>
+									<td class="baseline"><ins name="GND"></ins></td>
+									<td class="model-B verboten" title="ID SD"><ins name="ID SD"></ins></td>
+									<td class="model-B"><input type="radio" name="pin" /></td>
+									<td class="model-B"><input type="radio" name="pin" /></td>
+									<td class="model-B"><input type="radio" name="pin" /></td>
+									<td class="model-B pcm" title="PCM: FS"><input type="radio" name="pin" /></td>
+									<td class="model-B"><input type="radio" name="pin" /></td>
+									<td class="model-B"><ins name="GND"></ins></td>
+								</tr>
+							</table>
+						</td>
+					</tr>
+					<tr>
+						<th class="span" colspan="3"><label for="sensorMin">Sensor resistance</label></th>
+					</tr>
+					<tr>
+						<th><label for="sensorMin">Min</label></th>
+						<td><input type="number" id="sensorMin" value="0"></td>
+						<td>
+							<select id="sensorMinUnit">
+								<option value="1000000">MΩ</option>
+								<option value="1000">kΩ</option>
+								<option selected value="1">Ω</option>
+								<option value="0.001">mΩ</option>
+								<option value="0.000001">μΩ</option>
+							</select>
+						</td>
+					</tr>
+					<tr>
+						<th><label for="sensorMax">Max</label></th>
+						<td width="1"><input type="number" id="sensorMax" value="31"></td>
+						<td>
+							<select id="sensorMaxUnit">
+								<option value="1000000">MΩ</option>
+								<option selected value="1000">kΩ</option>
+								<option value="1">Ω</option>
+								<option value="0.001">mΩ</option>
+								<option value="0.000001">μΩ</option>
+							</select>
+						</td>
+					</tr>
+					<tr>
+						<th><label for="capacitance">Capacitance</label></th>
+						<td><input type="number" id="capacitance" value="1"></td>
+						<td>
+							<select id="capacitanceUnit">
+								<option value="1">F</option>
+								<option value="0.001">mF</option>
+								<option selected value="0.000001">μF</option>
+								<option value="0.000000001">nF</option>
+								<option value="0.000000000001">pF</option>
+							</select>
+						</td>
+					</tr>
+					<tr>
+						<th><label for="buffer">Buffer resistor</label></th>
+						<td><input type="number" id="buffer" value="2.2"></td>
+						<td>
+							<select id="bufferUnit">
+								<option value="1000000">MΩ</option>
+								<option selected value="1000">kΩ</option>
+								<option value="1">Ω</option>
+								<option value="0.001">mΩ</option>
+								<option value="0.000001">μΩ</option>
+							</select>
+						</td>
+					</tr>
+				</tbody>
+				<tfoot>
+					<tr>
+						<th>Constructor</th>
+						<td colspan="2"><pre id="construct">Pin(17, minResistance=2200, capacitance=0.000001, timeout=0.023)</pre></td>
+					</tr>
+					<tr>
+						<th class="span" colspan="3">Sampling frequency</th>
+					</tr>
+					<tr>
+						<th>Min</th>
+						<td colspan="2" id="minFreq">29.126 Hz</td>
+					</tr>
+					<tr>
+						<th>Max</th>
+						<td colspan="2" id="maxFreq">1000 Hz</td>
+					</tr>
+				</tfoot>
+			</table>
+		</section>
+		<script>
+			recalculate();
+			[].forEach.call(document.querySelectorAll('input[name="pin"]'), function (pin) {
+				pin.addEventListener('change', function (e) {
+					if (e.target.checked) {
+						recalculate(e);
+					}
+				}, false);
+			});
+			[].forEach.call(document.querySelectorAll('input[id], select[id]'), function (inp) {
+				inp.addEventListener('change', recalculate, false);
+			});
+		</script>
+
+	</body>
+</html>
