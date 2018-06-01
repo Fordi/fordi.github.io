@@ -1,0 +1,176 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Wedding vow generator</title>
+    <script>
+      var prose = [
+        `I promise to love and care for you, and I will try in every way to be worthy of your love.
+        I will always be honest with you, kind, patient and forgiving.
+        I promise to try to be on time.
+        But most of all, I promise to be a true and loyal friend to you.
+        I love you.`,
+
+        `You are my lover and my teacher,
+        You are my model and my accomplice,
+        And you are my true counterpart.
+        I will love you, hold you and honor you,
+        I will respect you, encourage you and cherish you,
+        In health and sickness,
+        Through sorrow and success,
+        For all the days of my life.`,
+
+        `I promise to be your lover, companion and friend,
+        Your partner in parenthood,
+        Your ally in conflict,
+        Your greatest fan and your toughest adversary.
+        Your comrade in adventure,
+        Your student and your teacher,
+        Your consolation in disappointment,
+        Your accomplice in mischief.
+        This is my sacred vow to you, my equal in all things. All things.`,
+
+        `I take you to be my partner for life,
+        I promise above all else to live in truth with you
+        And to communicate fully and fearlessly,
+        I give you my hand and my heart
+        As a sanctuary of warmth and peace
+        And pledge my love, devotion, faith and honor
+        As I join my life to yours.`,
+
+        `On this day,
+        I give you my heart,
+        My promise,
+        That I will walk with you,
+        Hand in hand,
+        Wherever our journey leads us,
+        Living, learning, loving,
+        Together,
+        Forever.`,
+
+        `I believe in you, the person you will grow to be and the couple we will be together.
+
+        With my whole heart, I take you as my wife/husband, acknowledging and accepting your faults and strengths, as you do mine.
+
+        I promise to be faithful and supportive and to always make our family's love and happiness my priority. I will be yours in plenty and in want, in sickness and in health, in failure and in triumph. I will dream with you, celebrate with you and walk beside you through whatever our lives may bring. You are my person—my love and my life, today and always.`,
+
+        `I promise to encourage your compassion,
+        Because that is what makes you unique and wonderful.
+        I promise to nurture your dreams,
+        Because through them your soul shines.
+        I promise to help shoulder our challenges,
+        For there is nothing we cannot face if we stand together.
+        I promise to be your partner in all things,
+        Not possessing you, but working with you as a part of the whole.
+        Lastly, I promise to you perfect love and perfect trust,
+        For one lifetime with you could never be enough.
+        This is my sacred vow to you, my equal in all things.`,
+
+        `You have been my best friend, mentor, playmate, confidant and my greatest challenge. But most importantly, you are the love of my life and you make me happier than I could ever imagine and more loved than I ever thought possible... You have made me a better person, as our love for one another is reflected in the way I live my life. So I am truly blessed to be a part of your life, which as of today becomes our life together.`,
+
+        `I remember once how I told you I did not believe in soul mates. I will never forget your reaction. Shocked and a little hurt that I did not think we were. But as time went by, your love made me believe.`,
+
+        `I promise to comfort you when the Falcons lose and drink beer with you when they win.`,
+
+        `You know me better than anyone else in this world and somehow still you manage to love me. You are my best friend and one true love. There is still a part of me today that cannot believe that I'm the one who gets to marry you.`,
+
+        `I feel truly blessed because I've found a love that transcends and grows, despite state lines, early morning commutes, barking beagles and conflicting seasons.`,
+
+        `I see these vows not as promises but as privileges: I get to laugh with you and cry with you; care for you and share with you. I get to run with you and walk with you; build with you and live with you.`,
+
+        `The feeling hit me the moment we made eye contact in class. It was so immediate and powerful—far deeper and inexplicably beyond any calculation of time and place. You don't describe a feeling like that. You also can't replicate it or force it. You just let it flow in and around you. You go where it takes you.`,
+
+        `I promise faithfulness and patience, respect and lightheartedness, attentiveness and self-improvement. I will celebrate your triumphs, and love you all the more for your failures.`,
+
+        `Our open attitude toward finding adventure together in life is something that I cherish. I love it even more when those great experiences take the form of us making up a home-cooked meal together with a lot of great wine and music. I would marry you for your risotto alone!`,
+
+        `I call you 'My %SO%' because you are my everything. You are my light, and you've shown me more love than I've ever known.`,
+
+        `I promise to hold your hand every night and to never let us lose our spark.`,
+
+        `I've always had goals, aspirations, things I wanted to do. But when I met you, I learned what it was to dream. You dreamed of traveling, but not just out of the state; you dreamed of visiting Spain, Italy and places I've only read about. I've learned to dream of the things I deserve.`,
+
+        `I vow to have the patience that love demands, to speak when words are needed and to share in the silence when they are not.`,
+
+        `Until today, the day that I told you I loved you, the day that I knew I was going to marry you, that was the best day of my life.`,
+
+        `I promise to be your navigator, consoler, sidekick, best friend and your husband. Finally, I promise you myself.`
+      ];
+      class ProseMarkov {
+        constructor() {
+          this.chain = {};
+        }
+        learn(prose) {
+          let tokens = this.tokenize(prose);
+          for (let i = 1; i < tokens.length; i++) {
+            this.addSequence(tokens[i - 1], tokens[i]);
+          }
+        }
+        addSequence(a, b) {
+          if (!this.chain[a]) {
+            this.chain[a] = {  };
+            Object.defineProperty(this.chain[a], '_total', {
+              enumerable: false,
+              value: 0,
+              writable: true
+            });
+          }
+          if (!this.chain[a][b]) {
+            this.chain[a][b] = 0;
+          }
+          this.chain[a]._total++;
+          this.chain[a][b]++;
+        }
+        tokenize(prose) {
+          let tokens = ['**START**'];
+          prose.replace(/[a-zA-Z0-9']+|\.\.\.|[\.\!\?]|,|\r\n|\r|\n/g, function (m) {
+            tokens.push(m.toLowerCase());
+          });
+          tokens.push('**END**');
+          return tokens;
+        }
+        generate() {
+          let current = '**START**';
+          let out = [];
+          let initCap = true;
+          while ('**END**' !== (current = this.next(current))) {
+            let word = current;
+            if (!/[\.\!\?,]/.test(word)) {
+              if (initCap || word === 'i') {
+                word = word[0].toUpperCase() + current.substr(1);
+                initCap = false;
+              }
+              out.push(' ' + word);
+            } else {
+              out.push(word);
+              if (word !== ',') {
+                initCap = true;
+              }
+            }
+          }
+
+          return out.join('').substr(1);
+        }
+        next(cur) {
+          let candidates = this.chain[cur];
+          if (candidates === undefined) {
+            throw new Error("Oops: " + cur);
+          }
+          let pos = Math.floor(candidates._total * Math.random());
+          let word;
+          for (word in candidates) {
+            pos -= candidates[word];
+            if (pos <= 1) {
+              return word;
+            }
+          }
+        }
+      }
+      var m = new ProseMarkov();
+      prose.forEach(vow => m.learn(vow));
+    </script>
+  </head>
+  <body>
+    <button onclick="document.getElementById('vow').innerHTML = m.generate(); return false;">I promise...</button>
+    <p id="vow"></p>
+  </body>
+</html>
